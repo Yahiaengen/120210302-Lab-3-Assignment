@@ -1,44 +1,49 @@
-
 import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from tkinter import Tk, filedialog
+from google.colab import files
 
+# Use Google Colab's file upload
 def load_image():
-    root = Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename(
-        title="Select an Image File",
-        filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")]
-    )
-    return file_path
+    uploaded = files.upload()
+    for filename in uploaded:
+        return filename
 
 def extract_green_regions(image_path):
     img = cv2.imread(image_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+
     a_channel = img_lab[:, :, 1].astype(np.float64)
     a_channel = (a_channel - np.mean(a_channel)) / np.std(a_channel)
     flat_data = a_channel.reshape(-1, 1)
+
     cluster_model = GreenDigitKMeans(clusters=2, strategy='++', attempts=10, seed=42)
     cluster_model.fit(flat_data)
+
     label_map = cluster_model.predict(flat_data).reshape(a_channel.shape)
     green_cluster = np.argmax(cluster_model.centroids)
+
     green_mask = np.zeros_like(img_rgb)
     green_mask[label_map == green_cluster] = [0, 255, 0]
+
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
     plt.imshow(img_rgb)
     plt.axis("off")
+    plt.title("Original Image")
+
     plt.subplot(1, 2, 2)
     plt.imshow(green_mask)
     plt.axis("off")
+    plt.title("Detected Green Regions")
+
     plt.tight_layout()
     plt.show()
 
 class GreenDigitKMeans:
-    def __init__(self, clusters=2, strategy='++', attempts=5, max_steps=300, tolerance=1e-4, seed=None):
+    def __init__(self, clusters=3, strategy='++', attempts=5, max_steps=300, tolerance=1e-4, seed=None):
         self.clusters = clusters
         self.strategy = strategy
         self.attempts = attempts
@@ -95,10 +100,10 @@ class GreenDigitKMeans:
         dists = np.sum((data[:, None] - self.centroids)**2, axis=2)
         return np.argmin(dists, axis=1)
 
-if __name__ == "__main__":
-    selected_image = load_image()
-    if selected_image:
-        print(f"Processing: {selected_image}")
-        extract_green_regions(selected_image)
-    else:
-        print("No image selected.")
+# Main execution
+selected_image = load_image()
+if selected_image:
+    print(f"Processing: {selected_image}")
+    extract_green_regions(selected_image)
+else:
+    print("No image selected.")
